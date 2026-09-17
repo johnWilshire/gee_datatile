@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GEE xee DataTile OpenLayers Viewer</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.1.0/ol.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0d1117;
+      color: #c9d1d9;
+    }
+    .app-container {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+    }
+    .sidebar {
+      width: 360px;
+      height: 100vh;
+      background: #161b22;
+      border-right: 1px solid #30363d;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow-y: auto;
+      z-index: 10;
+    }
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 1px solid #30363d;
+      background: #0d1117;
+    }
+    .sidebar-header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f0f6fc;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sidebar-header p {
+      font-size: 12px;
+      color: #8b949e;
+      margin-top: 4px;
+    }
+    .status-card {
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .status-row:last-child {
+      margin-bottom: 0;
+    }
+    .status-label {
+      color: #8b949e;
+    }
+    .status-value {
+      font-weight: 600;
+      color: #58a6ff;
+    }
+    .sidebar-content {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      flex-grow: 1;
+    }
+    .section-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #8b949e;
+      margin-bottom: 8px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #c9d1d9;
+    }
+    .field input, .field select {
+      width: 100%;
+      padding: 8px 10px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #f0f6fc;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus, .field select:focus {
+      border-color: #58a6ff;
+    }
+    .range-group {
+      display: flex;
+      gap: 10px;
+    }
+    .range-group > div {
+      flex: 1;
+    }
+    .checkbox-field {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #c9d1d9;
+      cursor: pointer;
+    }
+    .checkbox-field input {
+      width: auto;
+      cursor: pointer;
+    }
+    button.btn-primary {
+      width: 100%;
+      padding: 10px 16px;
+      background: #238636;
+      border: 1px solid rgba(240, 246, 252, 0.1);
+      border-radius: 6px;
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 8px;
+    }
+    button.btn-primary:hover {
+      background: #2ea043;
+    }
+    button.btn-secondary {
+      padding: 8px 12px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      color: #f0f6fc;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button.btn-secondary:hover {
+      background: #30363d;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: #58a6ff;
+    }
+    .hour-panel {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+    }
+    .hour-panel.visible {
+      display: flex;
+    }
+    .hour-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #map {
+      flex: 1;
+      height: 100vh;
+      background: #0d1117;
+    }
+    .legend-box {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #8b949e;
+      background: #0d1117;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h1>GEE DataTile Viewer</h1>
+        <p>On-the-Fly Earth Engine GPU WebGL Tiles</p>
+
+        <div class="status-card">
+          <div class="status-row">
+            <span class="status-label">Hover Value:</span>
+            <span class="status-value" id="data-value">--</span>
+          </div>
+          <div class="status-row">
+            <span class="status-label">Tile Requests:</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="status-value" id="tileCount">0</span>
+              <button id="resetTileCountBtn" style="background: none; border: none; color: #8b949e; cursor: pointer; font-size: 11px; padding: 0; text-decoration: underline;" title="Reset counter">Reset</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-content">
+        <div class="field">
+          <label for="presetSelect">Layer Preset</label>
+          <select id="presetSelect">
+            <option value="modis_ndvi">MODIS Vegetation Index (NDVI)</option>
+            <option value="copernicus_landcover">Copernicus Global Land Cover 100m</option>
+            <option value="merra_temp">MERRA-2 Air Temperature (TLML)</option>
+            <option value="merra_wind">MERRA-2 Surface Wind Speed</option>
+            <option value="custom">Custom Dataset</option>
+          </select>
+        </div>
+
+        <div class="section-title">Dataset Configuration</div>
+
+        <div class="field">
+          <label for="dataset">GEE Dataset ID</label>
+          <input type="text" id="dataset" value="MODIS/061/MOD13Q1">
+        </div>
+
+        <div class="field">
+          <label for="bands">Bands</label>
+          <input type="text" id="bands" value="NDVI">
+        </div>
+
+        <div class="field range-group">
+          <div>
+            <label for="dateFilter">Start Date</label>
+            <input type="date" id="dateFilter" value="2022-01-01">
+          </div>
+          <div>
+            <label for="endDateFilter">End Date</label>
+            <input type="date" id="endDateFilter" value="">
+          </div>
+        </div>
+
+        <div class="section-title">Client-Side WebGL Styling</div>
+
+        <div class="field">
+          <label for="colormap">Colormap Palette</label>
+          <select id="colormap">
+            <option value="ndvi">NDVI Vegetation</option>
+            <option value="landcover">Copernicus Landcover Classes</option>
+            <option value="wind">MERRA Wind</option>
+            <option value="viridis">Viridis</option>
+            <option value="thermal">Thermal</option>
+            <option value="grayscale">Grayscale</option>
+          </select>
+        </div>
+
+        <div class="field range-group">
+          <div>
+            <label for="minVal">Min Value</label>
+            <input type="number" id="minVal" value="0" step="100">
+          </div>
+          <div>
+            <label for="maxVal">Max Value</label>
+            <input type="number" id="maxVal" value="8000" step="100">
+          </div>
+        </div>
+
+        <label class="checkbox-field">
+          <input type="checkbox" id="stackHours">
+          Stack hourly timesteps (24 bands / tile)
+        </label>
+
+        <div id="hourPanel" class="hour-panel">
+          <div class="section-title" style="margin-bottom: 0;">Hour (client-side, no refetch)</div>
+          <div class="hour-controls">
+            <button type="button" id="playHoursBtn" class="btn-secondary">Play</button>
+            <input type="range" id="hourSlider" min="0" max="23" step="1" value="0">
+          </div>
+          <div class="status-row" style="margin-bottom: 0;">
+            <span class="status-label">Timestep:</span>
+            <span class="status-value" id="hourLabel">00:30 UTC</span>
+          </div>
+        </div>
+
+        <label class="checkbox-field">
+          <input type="checkbox" id="debugLogs">
+          Enable Debug Console Logs
+        </label>
+
+        <button id="updateBtn" class="btn-primary">Fetch / Reload Layer</button>
+      </div>
+    </div>
+
+    <div id="map"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ol@v9.1.0/dist/ol.js"></script>
+  <script src="/static/main.js"></script>
+</body>
+</html>

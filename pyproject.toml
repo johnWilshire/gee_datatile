@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gee-datatile"
+version = "0.1.0"
+description = "Sample a Google Earth Engine ee.Image into raw Float32 XYZ tiles for OpenLayers DataTile / WebGL."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "earthengine-api>=0.1.390",
+    "numpy>=1.26.0",
+]
+
+[project.optional-dependencies]
+demo = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.28.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["gee_datatile*"]

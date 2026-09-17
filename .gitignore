@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Earth Engine / GCP credentials — never commit
+*.pem
+*-key.json
+*-credentials.json
+service-account*.json
+credentials.json
+
+# local notes
+summary.md
