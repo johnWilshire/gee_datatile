@@ -91,11 +91,52 @@ get_tile(ee.ImageCollection("NASA/GSFC/MERRA/flx/2"), 3, 2, 3)
 
 ---
 
-## Why this exists
+## Motivation
 
-Classic Earth Engine web maps ship **PNG/JPEG** tiles. Changing a colormap or stretch invalidates the cache and re-requests every tile.
+Standard Earth Engine web maps pre-render rasters on the server as **PNG/JPEG tile layers**. Visualization parameters — colormap, min/max stretch, band combination, opacity, or timestep — are baked into each tile at export time. Any change to those parameters invalidates the entire layer: the client must fetch a **new map token** and **re-download every visible tile** from Earth Engine.
 
-This library ships **raw values**. The client keeps the array and restyles it in WebGL (`setStyle`, band index, min/max) with **zero extra GEE calls**.
+That pattern works for static maps. It breaks down for interactive analysis where a user drags a contrast slider, scrubs through 24 hourly wind fields, or toggles NDVI thresholds. Each adjustment triggers a full tile pyramid refresh, adding seconds of latency and repeated GEE compute for pixels the client already had in memory as numbers.
+
+**gee-datatile** inverts this: fetch raw Float32 values once per viewport, then restyle on the GPU.
+
+### Standard flow — new tile layer on every visualization change
+
+Each user edit produces a new rendered layer. The client cannot reuse prior tiles because the bytes are already colored RGBA, not raw values.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant Client as WebClient
+    participant AppServer as AppBackend
+    participant GEE as EarthEngine
+
+    Note over Client,GEE: Initial layer load
+    Client->>AppServer: getMapId(dataset, viz_params)
+    AppServer->>GEE: ee.Image.getMapId(viz_params)
+    GEE-->>AppServer: mapid + token
+    AppServer-->>Client: tile URL template
+    loop Every visible tile z/x/y
+        Client->>GEE: GET /v1alpha/.../tiles/z/x/y
+        GEE-->>Client: PNG or JPEG image tile
+    end
+
+    Note over User,GEE: User changes colormap, stretch, band, or hour
+    User->>Client: Update visualization
+    Client->>Client: Invalidate tile cache
+    Client->>AppServer: getMapId(dataset, new_viz_params)
+    AppServer->>GEE: ee.Image.getMapId(new_viz_params)
+    GEE-->>AppServer: new mapid + token
+    AppServer-->>Client: new tile URL template
+    loop Re-fetch ALL visible tiles
+        Client->>GEE: GET /v1alpha/.../tiles/z/x/y
+        GEE-->>Client: PNG or JPEG image tile
+    end
+```
+
+### gee-datatile flow — fetch once, style on the GPU
+
+Raw values are fetched a single time per tile coordinate. Colormap, stretch, and hourly band selection are WebGL shader updates with **no additional GEE requests**.
 
 ```mermaid
 sequenceDiagram
@@ -113,7 +154,7 @@ sequenceDiagram
     GEE-->>Pkg: Float32 array
     Pkg-->>Demo: ndarray (H, W, bands)
     Demo-->>Client: application/octet-stream
-    User->>Client: colormap / hour slider
+    User->>Client: colormap / hour slider / min-max
     Note over Client: GPU shader only — no refetch
 ```
 
