@@ -107,30 +107,30 @@ Each user edit produces a new rendered layer. The client cannot reuse prior tile
 sequenceDiagram
     autonumber
     actor User
-    participant Client as WebClient
-    participant AppServer as AppBackend
-    participant GEE as EarthEngine
+    participant WebClient as Web client
+    participant AppBackend as App backend
+    participant EarthEngine as Earth Engine
 
-    Note over Client,GEE: Initial layer load
-    Client->>AppServer: getMapId(dataset, viz_params)
-    AppServer->>GEE: ee.Image.getMapId(viz_params)
-    GEE-->>AppServer: mapid + token
-    AppServer-->>Client: tile URL template
+    Note over WebClient,EarthEngine: Initial layer load
+    WebClient->>AppBackend: getMapId(dataset, viz_params)
+    AppBackend->>EarthEngine: ee.Image.getMapId(viz_params)
+    EarthEngine-->>AppBackend: mapid + token
+    AppBackend-->>WebClient: tile URL template
     loop Every visible tile z/x/y
-        Client->>GEE: GET /v1alpha/.../tiles/z/x/y
-        GEE-->>Client: PNG or JPEG image tile
+        WebClient->>EarthEngine: GET /v1alpha/.../tiles/z/x/y
+        EarthEngine-->>WebClient: PNG or JPEG image tile
     end
 
-    Note over User,GEE: User changes colormap, stretch, band, or hour
-    User->>Client: Update visualization
-    Client->>Client: Invalidate tile cache
-    Client->>AppServer: getMapId(dataset, new_viz_params)
-    AppServer->>GEE: ee.Image.getMapId(new_viz_params)
-    GEE-->>AppServer: new mapid + token
-    AppServer-->>Client: new tile URL template
+    Note over User,EarthEngine: User changes colormap, stretch, band, or hour
+    User->>WebClient: Update visualization
+    WebClient->>WebClient: Invalidate tile cache
+    WebClient->>AppBackend: getMapId(dataset, new_viz_params)
+    AppBackend->>EarthEngine: ee.Image.getMapId(new_viz_params)
+    EarthEngine-->>AppBackend: new mapid + token
+    AppBackend-->>WebClient: new tile URL template
     loop Re-fetch ALL visible tiles
-        Client->>GEE: GET /v1alpha/.../tiles/z/x/y
-        GEE-->>Client: PNG or JPEG image tile
+        WebClient->>EarthEngine: GET /v1alpha/.../tiles/z/x/y
+        EarthEngine-->>WebClient: PNG or JPEG image tile
     end
 ```
 
@@ -142,20 +142,17 @@ Raw values are fetched a single time per tile coordinate. Colormap, stretch, and
 sequenceDiagram
     autonumber
     actor User
-    participant Client as OpenLayers WebGL
-    participant Demo as FastAPI demo
-    participant Pkg as gee_datatile.get_tile
-    participant GEE as Earth Engine High-Volume API
+    participant WebClient as Web client
+    participant AppBackend as App backend
+    participant EarthEngine as Earth Engine
 
-    Client->>Demo: GET /tiles/z/x/y
-    Demo->>Demo: ImageCollection to ee.Image (.first or .toBands)
-    Demo->>Pkg: get_tile(image, z, x, y)
-    Pkg->>GEE: computePixels (XYZ grid)
-    GEE-->>Pkg: Float32 array
-    Pkg-->>Demo: ndarray (H, W, bands)
-    Demo-->>Client: application/octet-stream
-    User->>Client: colormap / hour slider / min-max
-    Note over Client: GPU shader only — no refetch
+    WebClient->>AppBackend: GET /tiles/z/x/y
+    AppBackend->>AppBackend: ImageCollection to ee.Image (.first or .toBands)
+    AppBackend->>EarthEngine: computePixels via get_tile (XYZ grid)
+    EarthEngine-->>AppBackend: Float32 array
+    AppBackend-->>WebClient: application/octet-stream
+    User->>WebClient: colormap / hour slider / min-max
+    Note over WebClient: GPU shader only — no refetch
 ```
 
 ---
